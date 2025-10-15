@@ -1,0 +1,182 @@
+-- Data Cleaning In MYSQL -- 
+
+SELECT *
+FROM layoffs;
+
+-- Steps For Cleaning Data --
+-- 1. Remove Duplicates               Reference Line Number [12-82] --
+-- 2. Standardize the data            Reference Line Number [85-128] --
+-- 3. Null Values or Blank values     Reference Line Number [131-174] --
+-- 4. Remove Any Columns              Reference Line Number [177-181] --
+
+CREATE TABLE layoffs_staging
+LIKE layoffs;
+
+SELECT *
+FROM layoffs_staging;
+
+INSERT layoffs_staging
+SELECT *
+FROM layoffs;
+-- Code Above Creates Duplicate Table That May Be Edited For Further Processing --
+
+SELECT *
+FROM layoffs_staging;
+
+SELECT *,
+ROW_NUMBER() OVER(
+PARTITION BY company, industry, total_laid_off,percentage_laid_off, 'date') AS row_num
+FROM layoffs_staging;
+
+WITH duplicate_cte AS
+(SELECT *,
+ROW_NUMBER() OVER(
+PARTITION BY company, location, industry, total_laid_off, percentage_laid_off, 'date', stage, country, funds_raised_millions ) AS row_num
+FROM layoffs_staging)
+SELECT*
+FROM duplicate_cte
+WHERE row_num > 1 ;
+-- Code Above Identitifies Duplicates In Our Dataset --
+
+SELECT * 
+FROM layoffs_staging
+WHERE company = 'Casper';
+-- Example of Duplicate Found -- 
+
+WITH duplicate_cte AS
+(SELECT *,
+ROW_NUMBER() OVER(
+PARTITION BY company, location, industry, total_laid_off, percentage_laid_off, 'date', stage, country, funds_raised_millions ) AS row_num
+FROM layoffs_staging)
+DELETE
+FROM duplicate_cte
+WHERE row_num > 1 ;
+-- Unable To Update CTE Where CTE = Common Table Expression/Temporary Table --
+
+CREATE TABLE `layoffs_staging2` (
+  `company` text,
+  `location` text,
+  `industry` text,
+  `total_laid_off` int DEFAULT NULL,
+  `percentage_laid_off` text,
+  `date` text,
+  `stage` text,
+  `country` text,
+  `funds_raised_millions` int DEFAULT NULL,
+  `row_num` INT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+-- Creatation Of Layoffs_Staging_2 Table --
+
+SELECT *
+FROM layoffs_staging2
+WHERE row_num > 1;
+
+INSERT INTO layoffs_staging2
+SELECT *,
+ROW_NUMBER() OVER(
+PARTITION BY company, location, industry, total_laid_off, percentage_laid_off, 'date', stage, country, funds_raised_millions ) AS row_num
+FROM layoffs_staging;
+
+DELETE
+FROM layoffs_staging2
+WHERE row_num > 1;
+-- Removal Of Duplicates Successful (22 Duplicates Deleted) --
+
+SELECT company, TRIM(company)
+FROM layoffs_staging2;
+
+UPDATE layoffs_staging2
+SET company = TRIM(company);
+-- Removing Unnecessary Spaces In Column --
+
+SELECT DISTINCT industry
+FROM layoffs_staging2
+ORDER BY 1;
+-- 3 Identical Cells Found Namely Crypto,CryptoCurrency and Crypto Currency --
+
+SELECT *
+FROM layoffs_staging2
+WHERE industry LIKE 'crypto%';
+
+UPDATE layoffs_staging2 
+SET industry = 'crypto'
+WHERE industry LIKE 'crypto%';
+-- NOTE: Check Each Column For Errors/Inconsistency --
+
+SELECT DISTINCT country
+FROM layoffs_staging2
+ORDER BY 1;
+-- United States And United States. Returned --
+
+SELECT DISTINCT country, TRIM(TRAILING '.' FROM country)
+FROM layoffs_staging2
+ORDER BY 1;
+
+UPDATE layoffs_staging2
+SET country = TRIM(TRAILING '.' FROM country)
+WHERE country LIKE 'United States%';
+ 
+SELECT `date`,
+STR_TO_DATE(`date`,'%m/%d/%Y')
+FROM layoffs_staging2;
+-- "date" From Text Format To Date Format --
+ 
+ UPDATE layoffs_staging2
+ SET `date` = STR_TO_DATE(`date`, '%m/%d/%Y');
+
+ALTER TABLE layoffs_staging2
+MODIFY COLUMN `date` DATE;
+-- `date` = Date format --
+
+SELECT *
+FROM layoffs_staging2
+WHERE total_laid_off IS NULL
+AND percentage_laid_off IS NULL;
+
+UPDATE layoffs_staging2
+SET industry = NULL 
+WHERE industry = '';
+
+
+SELECT *
+FROM layoffs_staging2
+WHERE industry IS NULL
+OR industry = '';
+
+SELECT *
+FROM layoffs_staging2
+WHERE company = 'Airbnb';
+
+SELECT *
+FROM layoffs_staging2 t1
+JOIN layoffs_staging2 t2
+	 ON t1.company = t2.company
+     AND t1.location = t2.location
+WHERE (t1.industry IS NULL OR t1.industry = '')
+AND t2.industry IS NOT NULL;
+
+ UPDATE layoffs_staging2 t1
+ JOIN layoffs_staging2 t2
+	  On t1.company = t2.company
+SET t1.industry = t2.industry
+WHERE (t1.industry IS NULL OR t1.industry = '')
+AND t2.industry IS NOT NULL;
+-- Known Industry Information To Replace Blank/Null Using Dataset  --
+
+SELECT *
+FROM layoffs_staging2
+WHERE total_laid_off IS NULL
+AND percentage_laid_off IS NULL;
+
+DELETE
+FROM layoffs_staging2
+WHERE total_laid_off IS NULL
+AND percentage_laid_off IS NULL;
+-- Removal of Null Values --
+
+SELECT *
+FROM layoffs_staging2;
+
+ALTER TABLE layoffs_staging2
+DROP COLUMN row_num;
+-- Removal Of row_num Column Created Ref Line Number 26  --
