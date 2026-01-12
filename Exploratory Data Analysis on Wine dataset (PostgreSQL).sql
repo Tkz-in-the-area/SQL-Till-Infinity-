@@ -105,6 +105,7 @@ WHERE PRICE > 20
 GROUP BY 1 
 ORDER BY 2 DESC 
 LIMIT 5 
+
 -- 18) What are the top 20 regions that produce the highest number of wines with a minimum of 50 wines, where the price of a wine is below 300 EURO, and the number of rating reviews for the wine is more than 100?  
 SELECT Region, COUNT(Name) AS amount_wines 
 FROM wine_schema.wine_table 
@@ -113,3 +114,4 @@ GROUP BY 1
 HAVING COUNT(Name) > 100 
 ORDER BY 2 DESC 
 LIMIT 20 
+
